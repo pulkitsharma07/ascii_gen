@@ -6,8 +6,8 @@ import (
 	jpeg "image/jpeg"
 	"math/bits"
 	"os"
-  "os/exec"
-  "strconv"
+	"os/exec"
+	"strconv"
 )
 
 var mem map[uint64]string
@@ -16,20 +16,20 @@ func getClosestChar(pattern uint64) {
 	maxSimilarity := 0
 	var bestLetter string
 
-  if val, ok := mem[pattern]; ok {
-    bestLetter = val
-  } else {
-    for k, v := range chars.CharMap {
-      distance := bits.OnesCount64(^(v ^ pattern))
+	if val, ok := mem[pattern]; ok {
+		bestLetter = val
+	} else {
+		for k, v := range chars.CharMap {
+			distance := bits.OnesCount64(^(v ^ pattern))
 
-      if distance > maxSimilarity {
-        bestLetter = k
-        maxSimilarity = distance
-      }
-    }
+			if distance > maxSimilarity {
+				bestLetter = k
+				maxSimilarity = distance
+			}
+		}
 
-    mem[pattern] = bestLetter
-  }
+		mem[pattern] = bestLetter
+	}
 
 	fmt.Printf("%s ", bestLetter)
 }
@@ -45,7 +45,6 @@ func printImage(path string, threshold uint32) {
 
 	bounds := img.Bounds()
 	w, h := bounds.Max.X, bounds.Max.Y
-
 
 	for winY := 0; winY < h; winY += 8 {
 		for winX := 0; winX < w; winX += 8 {
@@ -70,30 +69,30 @@ func printImage(path string, threshold uint32) {
 }
 
 func main() {
-  var threshold uint32 = 130000
-  mem = make(map[uint64]string)
+	var threshold uint32 = 130000
+	mem = make(map[uint64]string)
 
-  for ;; {
-    exec.Command("clear").Run()
+	for {
+		exec.Command("clear").Run()
 
-    printImage(os.Args[1], threshold)
+		printImage(os.Args[1], threshold)
 
-    fmt.Printf("Current Threshold: %d\n", threshold)
-    fmt.Print("Change Threshold:")
+		fmt.Printf("Current Threshold: %d\n", threshold)
+		fmt.Print("Change Threshold:")
 
-    var input string
-    fmt.Scanln(&input)
+		var input string
+		fmt.Scanln(&input)
 
-    if input == "q" {
-      break
-    }
+		if input == "q" {
+			break
+		}
 
-    parsed, err := strconv.ParseInt(input, 10, 32)
+		parsed, err := strconv.ParseInt(input, 10, 32)
 
-    if err != nil {
-      fmt.Printf("Invalid Input")
-    } else {
-      threshold = uint32(parsed)
-    }
-  }
+		if err != nil {
+			fmt.Printf("Invalid Input")
+		} else {
+			threshold = uint32(parsed)
+		}
+	}
 }
