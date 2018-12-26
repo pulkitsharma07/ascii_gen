@@ -1,11 +1,47 @@
 package chars
 
 /*
-* Created from the C source code on:
+  This Map is created from the C source code on:
   https://opengameart.org/content/8x8-ascii-bitmap-font-with-c-source
   .
   .
-  and some awk magic
+  and some awk magic....
+
+  Details:
+  Each character below is represented by a 8 x 8 matrix of bits.
+
+  Think of this as an 8x8 black and white image. A pixel the bit present at that position
+  is set 0, and it is white if the bit is set to 1.
+
+  For example the character 'P' can be represented as:
+
+  01111000
+  01000100
+  01111000
+  01000000
+  01000000    <- Notice how all the 1's form the shape of P
+  01000000
+  00000000
+  00000000
+
+
+  Now, since we have 8x8 pixels (bits) , we can "pack" these in a 64 bit number.
+  These can be packed in multiple ways, like storing row1, then row2.. so on, or
+  you can store column1, column2, etc..
+
+  The C-code linked above has stored the bits by each row, starting from the top most row.
+
+  After "packing", we'll get the following 64 bit number:
+  0111100001000100011110000100000001000000010000000000000000000000
+
+  Notice, as we move from MSB to LSB we are going through the image from left to right (and top to bottom).
+  Converting this 64 bit number to decimal, we get: 8666183800318853120
+
+  Again, the code mentioned above has chosen to represent this number in hexadecimal notation instead.
+  Therefore, 'P' can be represented as 0x7844784040400000
+
+  It is quite common to represent series of bits as hexadecimal numbers.
+  One reason can be that they convey more information with less number of characters.
 */
 var CharMap map[string]uint64 = map[string]uint64{
 	" ":  0x0,
