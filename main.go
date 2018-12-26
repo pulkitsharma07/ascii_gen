@@ -7,7 +7,6 @@ import (
 	jpeg "image/jpeg"
 	"math/bits"
 	"os"
-	"os/exec"
 )
 
 // Map to memoize patterns which are already mapped to characters
@@ -46,7 +45,7 @@ func printClosestChar(pattern uint64) {
 	fmt.Printf("%s ", bestLetter)
 }
 
-func printImage(path string, threshold uint32, width uint) {
+func printImage(path string, threshold uint32, width uint, invert bool) {
 
 	// Open the image present at <path>
 	f, err := os.Open(path)
@@ -97,9 +96,16 @@ func printImage(path string, threshold uint32, width uint) {
 					// We need to somewhow represent this RGB values as 0/1
 					// The threshold governs that.
 					// For now, just adding R,G,B and comparing with the threshold.
-					// The image can be inverted (in colors) by inverting this condition
-					if r+g+b > threshold {
+					// The image can be inverted (in colors) by inverting this condition (done below)
+					//
+					// TODO:
+					// Fix ugly <invert> handling
+					if !invert && r+g+b > threshold {
 						pattern |= 1 << uint(cnt) // Set the <cnt>th bit in pattern as this pixel is above the threshold.
+					}
+
+					if invert && r+g+b < threshold {
+						pattern |= 1 << uint(cnt)
 					}
 
 					cnt-- // Move towards LSB
@@ -117,10 +123,11 @@ func printImage(path string, threshold uint32, width uint) {
 func main() {
 	// Some random numbers for thresholding
 	var threshold uint32 = 130000
-	var step_size uint32 = 10000
+	var step_size uint32 = 5000
+	var invert bool = false
 
 	// Number of characters per line
-	var width uint = 50
+	var width uint = 26
 
 	// Initializing a map to memoize 8x8 window to character mappings
 	mem = make(map[uint64]string)
@@ -128,17 +135,19 @@ func main() {
 	// forever
 	for {
 
-		// clear screen, so the user doesn't have to scroll
-		exec.Command("clear").Run()
+		// Clear Screen, https://stackoverflow.com/a/22892171
+		print("\033[H\033[2J")
 
 		// Display Image
-		printImage(os.Args[1], threshold, width)
+		printImage(os.Args[1], threshold, width, invert)
 
 		// Some data
 		fmt.Printf("Threshold: %d\tThreshold-StepSize: %d\tWidth: %d\n", threshold, step_size, width)
 		fmt.Print("Increment/Decrement Threshold with j/k\n")
 		fmt.Print("Increment/Decrement Threshold-StepSize with h/l\n")
 		fmt.Print("Increment/Decrement Width with u/i\n")
+		fmt.Print("Invert image with n\n")
+		fmt.Print("Enter q to exit.\n")
 
 		// Wait for user to input something.
 		var input string
@@ -169,6 +178,10 @@ func main() {
 		case "i":
 			{
 				width += 2
+			}
+		case "n":
+			{
+				invert = !invert
 			}
 		case "q":
 			{
