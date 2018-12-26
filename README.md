@@ -9,9 +9,9 @@ The code has enough comments to get you going, I recommend starting out with cha
 
 ## Demo
 ![Demo](https://github.com/pulkitsharma07/ascii_gen/raw/master/demo/render1545861845502.gif)
-* You try the following things to yield better results:
-    * Change number of characters per line.
-    * Change the threshold for binarization.
+* You can try to change the following parameters to yield better results:
+    * Number of characters per line (width).
+    * Threshold for binarization.
     * Try inverting the image, which sometimes leads to better results (as seen in the demo).
 
 ## Running/Installing
