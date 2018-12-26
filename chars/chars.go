@@ -10,7 +10,7 @@ package chars
   Details:
   Each character below is represented by a 8 x 8 matrix of bits.
 
-  Think of this as an 8x8 black and white image. A pixel the bit present at that position
+  Think of this as an 8x8 black and white image. A pixel is black if the bit present at that position
   is set 0, and it is white if the bit is set to 1.
 
   For example the character 'P' can be represented as:
@@ -19,17 +19,17 @@ package chars
   01000100
   01111000
   01000000
-  01000000    <- Notice how all the 1's form the shape of P
+  01000000    <- Notice how all the 1's here form a shape similar to P
   01000000
   00000000
   00000000
 
 
-  Now, since we have 8x8 pixels (bits) , we can "pack" these in a 64 bit number.
+  Now, since we have 8x8 pixels (or bits) , we can "pack" these in a 64 bit number.
   These can be packed in multiple ways, like storing row1, then row2.. so on, or
   you can store column1, column2, etc..
 
-  The C-code linked above has stored the bits by each row, starting from the top most row.
+  The C-code linked above has stored the bits by each row, starting from the top-most row.
 
   After "packing", we'll get the following 64 bit number:
   0111100001000100011110000100000001000000010000000000000000000000

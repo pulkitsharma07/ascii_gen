@@ -9,6 +9,8 @@ The code has enough comments to get you going, I recommend starting out with cha
 
 ## Demo
 ![Demo](https://github.com/pulkitsharma07/ascii_gen/raw/master/demo/render1545861845502.gif)
+* You can:
+    * `number of characters per line`, `threshold (for binarization of the source image)`, and `invert` the image (which sometimes leads to better results, as can be seen in the demo)
 
 ## Running/Installing
 * clone this repo
