@@ -3,11 +3,11 @@ package main
 import (
 	chars "./chars"
 	"fmt"
+	"github.com/nfnt/resize"
 	jpeg "image/jpeg"
 	"math/bits"
 	"os"
 	"os/exec"
-	"strconv"
 )
 
 var mem map[uint64]string
@@ -34,15 +34,16 @@ func getClosestChar(pattern uint64) {
 	fmt.Printf("%s ", bestLetter)
 }
 
-func printImage(path string, threshold uint32) {
+func printImage(path string, threshold uint32, width uint) {
 	f, err := os.Open(path)
 	if err != nil {
 		fmt.Printf("Some Error occured while opening %s: Erro: %v", path, err)
 		return
 	}
 
-	img, err := jpeg.Decode(f)
+	img_big, err := jpeg.Decode(f)
 
+	img := resize.Resize(width*8, 0, img_big, resize.Lanczos3)
 	bounds := img.Bounds()
 	w, h := bounds.Max.X, bounds.Max.Y
 
@@ -50,7 +51,6 @@ func printImage(path string, threshold uint32) {
 		for winX := 0; winX < w; winX += 8 {
 			var number uint64 = 0
 			cnt := 63
-
 			for y := winY; y < winY+8 && y < h; y++ {
 				for x := winX; x < winX+8 && x < w; x++ {
 					r, g, b, _ := img.At(x, y).RGBA()
@@ -70,29 +70,54 @@ func printImage(path string, threshold uint32) {
 
 func main() {
 	var threshold uint32 = 130000
+	var step_size uint32 = 10000
+	var width uint = 50
+
 	mem = make(map[uint64]string)
 
 	for {
 		exec.Command("clear").Run()
 
-		printImage(os.Args[1], threshold)
+		printImage(os.Args[1], threshold, width)
 
-		fmt.Printf("Current Threshold: %d\n", threshold)
-		fmt.Print("Change Threshold:")
+		fmt.Printf("Threshold: %d\tThreshold-StepSize: %d\tWidth: %d\n", threshold, step_size, width)
+
+		fmt.Print("Increment/Decrement Threshold with j/k\n")
+		fmt.Print("Increment/Decrement Threshold-StepSize with h/l\n")
+		fmt.Print("Increment/Decrement Width with u/i\n")
 
 		var input string
 		fmt.Scanln(&input)
 
-		if input == "q" {
-			break
-		}
-
-		parsed, err := strconv.ParseInt(input, 10, 32)
-
-		if err != nil {
-			fmt.Printf("Invalid Input")
-		} else {
-			threshold = uint32(parsed)
+		switch input {
+		case "j":
+			{
+				threshold -= step_size
+			}
+		case "k":
+			{
+				threshold += step_size
+			}
+		case "h":
+			{
+				step_size -= 100
+			}
+		case "l":
+			{
+				step_size += 100
+			}
+		case "u":
+			{
+				width -= 2
+			}
+		case "i":
+			{
+				width += 2
+			}
+		case "q":
+			{
+				os.Exit(0)
+			}
 		}
 	}
 }
