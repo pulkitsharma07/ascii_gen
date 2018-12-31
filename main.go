@@ -12,8 +12,14 @@ import (
 // Map to memoize patterns which are already mapped to characters
 var mem map[uint64]string
 
+// <color>
+// Color should be according to https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
+func printCharWithColor(bestChar string, r, g, b uint32) {
+	fmt.Printf("\x1b[38;2;%d;%d;%dm%s \x1b[0m", r/0x101, g/0x101, b/0x101, bestChar)
+}
+
 // Here <pattern> represents a 8x8 window of the image compressed into a 64 bit number
-func printClosestChar(pattern uint64) {
+func printClosestChar(pattern uint64, r, g, b uint32) {
 	maxDistance := 100
 	var bestLetter string
 
@@ -41,8 +47,7 @@ func printClosestChar(pattern uint64) {
 		mem[pattern] = bestLetter
 	}
 
-	// Voila !
-	fmt.Printf("%s ", bestLetter)
+	printCharWithColor(bestLetter, r, g, b)
 }
 
 func printImage(path string, threshold uint32, width uint, invert bool) {
@@ -90,7 +95,6 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 			// the top most line on the most significant 8 bits.
 			for y := winY; y < winY+8 && y < h; y++ {
 				for x := winX; x < winX+8 && x < w; x++ {
-
 					// Read the R,G,B values of the image at pixel <x>,<y>
 					r, g, b, _ := img.At(x, y).RGBA()
 
@@ -101,7 +105,11 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 			}
 
 			// Storing R,G,B values too, just in case
-			avgIntensity := uint32((sumR + sumG + sumB) / 64)
+			avgR := uint32((sumR) / 64)
+			avgG := uint32((sumG) / 64)
+			avgB := uint32((sumB) / 64)
+
+			avgIntensity := uint32(avgR + avgG + avgB/3)
 
 			for y := winY; y < winY+8 && y < h; y++ {
 				for x := winX; x < winX+8 && x < w; x++ {
@@ -128,7 +136,7 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 
 			// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
 			// (which is packed inside <pattern>)
-			printClosestChar(pattern)
+			printClosestChar(pattern, avgR, avgG, avgB)
 		}
 		fmt.Println("")
 	}
