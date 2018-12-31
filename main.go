@@ -79,6 +79,7 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 			// The packing will be similar to the one done in chars.CharMap
 			// Refer the comment there for more details.
 			var pattern uint64 = 0
+			var sumR, sumG, sumB uint64 = 0, 0, 0
 
 			cnt := 63 // Start assigning values in <pattern> from the MSB.
 
@@ -93,6 +94,19 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 					// Read the R,G,B values of the image at pixel <x>,<y>
 					r, g, b, _ := img.At(x, y).RGBA()
 
+					sumR += uint64(r)
+					sumG += uint64(g)
+					sumB += uint64(b)
+				}
+			}
+
+			// Storing R,G,B values too, just in case
+			avgIntensity := uint32((sumR + sumG + sumB) / 64)
+
+			for y := winY; y < winY+8 && y < h; y++ {
+				for x := winX; x < winX+8 && x < w; x++ {
+					r, g, b, _ := img.At(x, y).RGBA()
+
 					// We need to somewhow represent this RGB values as 0/1
 					// The threshold governs that.
 					// For now, just adding R,G,B and comparing with the threshold.
@@ -100,11 +114,11 @@ func printImage(path string, threshold uint32, width uint, invert bool) {
 					//
 					// TODO:
 					// Fix ugly <invert> handling
-					if !invert && r+g+b > threshold {
+					if !invert && r+g+b >= avgIntensity {
 						pattern |= 1 << uint(cnt) // Set the <cnt>th bit in pattern as this pixel is above the threshold.
 					}
 
-					if invert && r+g+b < threshold {
+					if invert && r+g+b < avgIntensity {
 						pattern |= 1 << uint(cnt)
 					}
 
