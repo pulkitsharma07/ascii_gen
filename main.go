@@ -34,14 +34,19 @@ func (a *color) RGB() (uint32, uint32, uint32) {
 	return a.r, a.g, a.b
 }
 
+// Converts R,G,B values back to 8 bits.
+func (a *color) retrofy() *color {
+	a.Div(0x101)
+	return a
+}
+
 // Map to memoize patterns which are already mapped to characters
 var mem map[uint64]string
 
 // <color>
-// Color should be according to https://en.wikipedia.org/wiki/ANSI_escape_code#3/4_bit
 func printCharWithColor(bestChar string, c *color) {
-	eight_bit_color := c.Div(0x101)
-	fmt.Printf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", eight_bit_color.r, eight_bit_color.g, eight_bit_color.b, bestChar)
+	c.retrofy()
+	fmt.Printf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", c.r, c.g, c.b, bestChar)
 }
 
 // Here <pattern> represents a 8x8 window of the image compressed into a 64 bit number
@@ -142,7 +147,13 @@ func printImage(path string, width uint) {
 	// The scripts converts each 8 x 8 block of image to 1 character.
 	// Therefore, in order to write X characters per line, the image should be resized to 8*X.
 	// Which maybe bigger/smaller than the original image.
-	// The aspect ratio of the image will be maintained because 0 is passed as the second argument.
+	//
+	// There interesting bit here is that, we are not preserving the aspect ratio of the image while
+	// resizing. Specifically, we make the height 3.7 times larger that it is supposed to be wrt to the width.
+	// This is done because, if we don't elongate the image, it will show up as squished in ASCII.
+	//
+	// 3.7 is just a magic number
+	// The generated ASCII image has somewhat similar aspect ratio (visually) to that of the source image.
 	img := resize.Resize(width*8, uint(float64(width)*3.7/aspect_ratio), img_big, resize.Lanczos3)
 	bounds = img.Bounds()
 	w, h := bounds.Max.X, bounds.Max.Y
