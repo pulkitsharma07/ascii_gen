@@ -72,6 +72,7 @@ func (a *color) retrofy() *color {
 	return a
 }
 
+// Refer: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
 func getCharWithColor(bestChar string, c *color) string {
 	c.retrofy()
 	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", c.r, c.g, c.b, bestChar)
@@ -102,6 +103,7 @@ func getClosestChar(pattern uint64, c *color) string {
 	return getCharWithColor(bestLetter, c)
 }
 
+// TODO: Move this inside windowProcessor
 func getPackedFormOfWindow(img image.Image, winX, winY, w, h int, threshold uint32) uint64 {
 	// <pattern> will eventually be the packed form of the current 8 x 8 window
 	// The packing will be similar to the one done in chars.CharMap
@@ -131,6 +133,7 @@ func getPackedFormOfWindow(img image.Image, winX, winY, w, h int, threshold uint
 	return pattern
 }
 
+// TODO: Move this inside windowProcessor
 func getMeanColorForWindow(img image.Image, winX, winY, w, h int) *color {
 	colorAccum := &color{0, 0, 0}
 
@@ -160,7 +163,6 @@ func displayBuffer(buffer [][]string) {
 }
 
 func printImage(path string, ascii_width uint) {
-
 	// Open the image present at <path>
 	f, err := os.Open(path)
 	if err != nil {
@@ -191,13 +193,26 @@ func printImage(path string, ascii_width uint) {
 	bounds = img.Bounds()
 	w, h := bounds.Max.X, bounds.Max.Y
 
+	// Create a 2D buffer of ASCII chars.
+	// This is required the goroutines responsible for processing window can/will finish in a random
+	// sequence.
+	// Therefore, we can't just draw the chars on the screen at the end of each goroutine's execution.
+	// We need a way to set characters in arbitrary location on the final image.
+	// So, we use a buffer here.
+	// Instead of drawing on the screen directly, the go routines will set the appropriate characters
+	// in this buffer, and once  all go routines are done processing the image, we can finally draw the
+	// buffer on the screen in a single go.
 	buffer := make([][]string, h/8+1)
 	for i := range buffer {
 		buffer[i] = make([]string, w/8+1)
 	}
 
+	// Each go routine must know what coordinate in the buffer is it respondible for.
+	// These variables are used to track that.
 	buffI, buffJ := 0, 0
 
+	// Common pattern to invoke multiple workers is to create 2 channels, one on which work is published,
+	// and another one where the main go routine waits for all of the work which was generated to be completed.
 	inform := make(chan windowProcessorResult)
 	done := make(chan bool)
 	numProcessors := 0
@@ -211,14 +226,28 @@ func printImage(path string, ascii_width uint) {
 	for winY := 0; winY < h; winY += 8 {
 		buffJ = 0
 		for winX := 0; winX < w; winX += 8 {
+			// Create a processor responsible for processing this 8x8 window
 			processor := windowProcessor{img, winX, winY, w, h, buffI, buffJ}
+
+			// Run the processor as a goroutine \m/
+			//
+			// <inform> is a channel where the processor will inform back with the appropriate ASCII
+			// representation for this window.
 			go processor.Run(inform)
+
+			// Store count of processors for closing the channel
 			numProcessors++
 			buffJ++
 		}
 		buffI++
 	}
 
+	// Start a go routine which collects the results from all of the processor go routines
+	// and writes to the buffer.
+	// This ensures that there are no race-conditions while accessing the buffer.
+	//
+	// Refer:
+	// https://gobyexample.com/closing-channels
 	go func() {
 		resultsReceived := 0
 		for {
@@ -226,6 +255,9 @@ func printImage(path string, ascii_width uint) {
 			if more {
 				resultsReceived++
 				buffer[result.buffI][result.buffJ] = result.c
+
+				// Close channel once all information is received.
+				// On the next call to `<- inform`, we will exit the loop, as <more> will not be true.
 				if resultsReceived == numProcessors {
 					close(inform)
 				}
@@ -233,7 +265,11 @@ func printImage(path string, ascii_width uint) {
 				break
 			}
 		}
+
+		// Display the buffer contents on the screen
 		displayBuffer(buffer)
+
+		// Push to done channel
 		done <- true
 	}()
 
@@ -242,44 +278,12 @@ func printImage(path string, ascii_width uint) {
 
 func main() {
 	// Number of characters per line
-	var width uint = 60
+	var width uint = 120
 
-	// forever
-	for {
+	imgs := os.Args[1:]
 
-		// Clear Screen, https://stackoverflow.com/a/22892171
-		print("\033[H\033[2J")
-
-		imgs := os.Args[1:]
-
-		for _, img_path := range imgs {
-			// Display Image
-			printImage(img_path, width)
-		}
-
-		// Some data
-		fmt.Printf("Width: %d\n", width)
-		fmt.Print("Increment/Decrement Width with u/i\n")
-		fmt.Print("Enter q to exit.\n")
-
-		// Wait for user to input something.
-		var input string
-		fmt.Scanln(&input)
-
-		// Just handle different input cases
-		switch input {
-		case "u":
-			{
-				width -= 10
-			}
-		case "i":
-			{
-				width += 10
-			}
-		case "q":
-			{
-				os.Exit(0)
-			}
-		}
+	for _, img_path := range imgs {
+		// Display Image
+		printImage(img_path, width)
 	}
 }
