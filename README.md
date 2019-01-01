@@ -1,5 +1,5 @@
 # ascii_gen
-A fast script to generate basic colorfull ASCII art from Images.
+A script to generate basic colorfull ASCII art from Images.
 
 ## Working
 The code maps each 8x8 window of pixels of the image to the character which is most similar to
