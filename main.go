@@ -72,8 +72,6 @@ func (a *color) retrofy() *color {
 	return a
 }
 
-// Map to memoize patterns which are already mapped to characters
-
 func getCharWithColor(bestChar string, c *color) string {
 	c.retrofy()
 	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", c.r, c.g, c.b, bestChar)
@@ -244,9 +242,7 @@ func printImage(path string, ascii_width uint) {
 
 func main() {
 	// Number of characters per line
-	var width uint = 50
-
-	// Initializing a map to memoize 8x8 window to character mappings
+	var width uint = 60
 
 	// forever
 	for {
@@ -274,11 +270,11 @@ func main() {
 		switch input {
 		case "u":
 			{
-				width -= 2
+				width -= 10
 			}
 		case "i":
 			{
-				width += 2
+				width += 10
 			}
 		case "q":
 			{
