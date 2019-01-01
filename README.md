@@ -2,7 +2,7 @@
 A script to generate basic colorfull ASCII art from Images.
 
 ## Demo
-![Demo](https://github.com/pulkitsharma07/ascii_gen/raw/master/demo/render1546308037772.gif)
+![Demo](https://github.com/pulkitsharma07/pulkitsharma07.github.io/raw/development/assets/render1546308037772.gif)
 
 ## Working
 The code maps each 8x8 window of pixels of the image to the character which is most similar to
