@@ -1,5 +1,5 @@
 # ascii_gen
-A script to generate basic colorfull ASCII art from Images.
+A script to generate basic colorful ASCII art from Images.
 
 ## Demo
 ![Demo](https://github.com/pulkitsharma07/pulkitsharma07.github.io/raw/development/assets/render1546308037772.gif)
