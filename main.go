@@ -182,12 +182,11 @@ func printImage(path string, ascii_width uint) {
 	width := ascii_width * 8
 
 	// There interesting bit here is that, we are not preserving the aspect ratio of the image while
-	// resizing. Specifically, we make the height half the value it is supposed to be wrt to the width.
+	// resizing. Specifically, we make the height about half the value it is supposed to be wrt to the width.
 	// This is done because, if we don't rescale the image, it will show up as squished in ASCII.
 	//
-	// Need to wrap my around as to why this value turned out to be 0.5
 	// The generated ASCII image has somewhat similar aspect ratio (visually) to that of the source image.
-	height := uint(float64(width) * 0.5 / aspect_ratio)
+	height := uint(float64(width) * 0.45 / aspect_ratio)
 
 	img := resize.Resize(width, height, img_big, resize.Lanczos3)
 	bounds = img.Bounds()
@@ -278,7 +277,7 @@ func printImage(path string, ascii_width uint) {
 
 func main() {
 	// Number of characters per line
-	var width uint = 120
+	var width uint = 150
 
 	imgs := os.Args[1:]
 
