@@ -8,7 +8,7 @@ that window.
 The code has enough comments to get you going, I recommend starting out with chars/chars.go !
 
 ## Demo
-![Demo](https://github.com/pulkitsharma07/ascii_gen/raw/master/demo/render1545861845502.gif)
+![Demo](https://github.com/pulkitsharma07/ascii_gen/raw/master/demo/render1546308037772.gif)
 
 
 ## Running/Installing
