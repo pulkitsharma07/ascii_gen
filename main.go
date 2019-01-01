@@ -43,14 +43,13 @@ func (a *color) retrofy() *color {
 // Map to memoize patterns which are already mapped to characters
 var mem map[uint64]string
 
-// <color>
-func printCharWithColor(bestChar string, c *color) {
+func getCharWithColor(bestChar string, c *color) string {
 	c.retrofy()
-	fmt.Printf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", c.r, c.g, c.b, bestChar)
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm%s\x1b[0m", c.r, c.g, c.b, bestChar)
 }
 
 // Here <pattern> represents a 8x8 window of the image compressed into a 64 bit number
-func printClosestChar(pattern uint64, c *color) {
+func getClosestChar(pattern uint64, c *color) string {
 	maxDistance := 100
 	var bestLetter string
 
@@ -78,7 +77,7 @@ func printClosestChar(pattern uint64, c *color) {
 		mem[pattern] = bestLetter
 	}
 
-	printCharWithColor(bestLetter, c)
+	return getCharWithColor(bestLetter, c)
 }
 
 func getPackedFormOfWindow(img image.Image, winX, winY, w, h int, threshold uint32) uint64 {
@@ -129,7 +128,16 @@ func getMeanColorForWindow(img image.Image, winX, winY, w, h int) *color {
 	return colorAccum.Div(64)
 }
 
-func printImage(path string, width uint) {
+func displayBuffer(buffer [][]string) {
+	for _, v := range buffer {
+		for _, s := range v {
+			fmt.Printf("%s", s)
+		}
+		fmt.Printf("\n")
+	}
+}
+
+func printImage(path string, ascii_width uint) {
 
 	// Open the image present at <path>
 	f, err := os.Open(path)
@@ -147,16 +155,26 @@ func printImage(path string, width uint) {
 	// The scripts converts each 8 x 8 block of image to 1 character.
 	// Therefore, in order to write X characters per line, the image should be resized to 8*X.
 	// Which maybe bigger/smaller than the original image.
-	//
+	width := ascii_width * 8
+
 	// There interesting bit here is that, we are not preserving the aspect ratio of the image while
-	// resizing. Specifically, we make the height 3.7 times larger that it is supposed to be wrt to the width.
-	// This is done because, if we don't elongate the image, it will show up as squished in ASCII.
+	// resizing. Specifically, we make the height half the value it is supposed to be wrt to the width.
+	// This is done because, if we don't rescale the image, it will show up as squished in ASCII.
 	//
-	// 3.7 is just a magic number
+	// Need to wrap my around as to why this value turned out to be 0.5
 	// The generated ASCII image has somewhat similar aspect ratio (visually) to that of the source image.
-	img := resize.Resize(width*8, uint(float64(width)*3.7/aspect_ratio), img_big, resize.Lanczos3)
+	height := uint(float64(width) * 0.5 / aspect_ratio)
+
+	img := resize.Resize(width, height, img_big, resize.Lanczos3)
 	bounds = img.Bounds()
 	w, h := bounds.Max.X, bounds.Max.Y
+
+	buffer := make([][]string, h/8+1)
+	for i := range buffer {
+		buffer[i] = make([]string, w/8+1)
+	}
+
+	buffI, buffJ := 0, 0
 
 	// We need to scan (and draw) the image from left to right (and top to bottom)
 	// Here winX, winY represents the top-left corner of the 8x8 window of the image, which will be
@@ -165,27 +183,32 @@ func printImage(path string, width uint) {
 	// We move the window by 8 units, since we don't want to read the same pixels again.
 	// Also, we move alone X axis first and then Y axis, because of the reasons stated earlier.
 	for winY := 0; winY < h; winY += 8 {
+		buffJ = 0
 		for winX := 0; winX < w; winX += 8 {
-			//
-			// First, we figure out the color is dominant in this 8x8 window.
-			// Therefore, we can draw the character with that color in order to convey the color information.
-			// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
-			//
-			// Here, we are going to try out the mean color.
-			avgColor := getMeanColorForWindow(img, winX, winY, w, h)
+			func(img image.Image, winX, winY, w, h, buffI, buffJ int) {
+				//
+				// First, we figure out the color is dominant in this 8x8 window.
+				// Therefore, we can draw the character with that color in order to convey the color information.
+				// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
+				//
+				// Here, we are going to try out the mean color.
+				avgColor := getMeanColorForWindow(img, winX, winY, w, h)
 
-			// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
-			avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
+				// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
+				avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
 
-			// Pack the current window into a 64 bit integer by performing binarization.
-			// Details in the function definition.
-			packedWindow := getPackedFormOfWindow(img, winX, winY, w, h, avgIntensity)
+				// Pack the current window into a 64 bit integer by performing binarization.
+				// Details in the function definition.
+				packedWindow := getPackedFormOfWindow(img, winX, winY, w, h, avgIntensity)
 
-			// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
-			printClosestChar(packedWindow, avgColor)
+				// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
+				buffer[buffI][buffJ] = getClosestChar(packedWindow, avgColor)
+			}(img, winX, winY, w, h, buffI, buffJ)
+			buffJ++
 		}
-		fmt.Println("")
+		buffI++
 	}
+	displayBuffer(buffer)
 }
 
 func main() {
