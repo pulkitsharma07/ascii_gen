@@ -34,6 +34,38 @@ func (a *color) RGB() (uint32, uint32, uint32) {
 	return a.r, a.g, a.b
 }
 
+type windowProcessor struct {
+	img                            image.Image
+	winX, winY, w, h, buffI, buffJ int
+}
+
+type windowProcessorResult struct {
+	c            string
+	buffI, buffJ int
+}
+
+func (p windowProcessor) Run(inform chan windowProcessorResult) {
+	//
+	// First, we figure out the color is dominant in this 8x8 window.
+	// Therefore, we can draw the character with that color in order to convey the color information.
+	// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
+	//
+	// Here, we are going to try out the mean color.
+	avgColor := getMeanColorForWindow(p.img, p.winX, p.winY, p.w, p.h)
+
+	// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
+	avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
+
+	// Pack the current window into a 64 bit integer by performing binarization.
+	// Details in the function definition.
+	packedWindow := getPackedFormOfWindow(p.img, p.winX, p.winY, p.w, p.h, avgIntensity)
+
+	// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
+	char := getClosestChar(packedWindow, avgColor)
+
+	inform <- windowProcessorResult{char, p.buffI, p.buffJ}
+}
+
 // Converts R,G,B values back to 8 bits.
 func (a *color) retrofy() *color {
 	a.Div(0x101)
@@ -41,7 +73,6 @@ func (a *color) retrofy() *color {
 }
 
 // Map to memoize patterns which are already mapped to characters
-var mem map[uint64]string
 
 func getCharWithColor(bestChar string, c *color) string {
 	c.retrofy()
@@ -53,28 +84,21 @@ func getClosestChar(pattern uint64, c *color) string {
 	maxDistance := 100
 	var bestLetter string
 
-	if val, ok := mem[pattern]; ok {
-		bestLetter = val
-	} else {
-		// Go through each character Mapping we have in chars.CharMap
-		for k, v := range chars.CharMap {
+	// Go through each character Mapping we have in chars.CharMap
+	for k, v := range chars.CharMap {
 
-			// Count the number of bits which are different in the pattern and the character
-			// This count represents dissimilar these 2 8x8 images are.
-			// Remember both are actually 8x8 images/patterns packed in 64 bit numbers.
-			// Here we take the XOR of these two numbers, which gives us count of bits which are different.
-			distance := bits.OnesCount64(v ^ pattern)
+		// Count the number of bits which are different in the pattern and the character
+		// This count represents dissimilar these 2 8x8 images are.
+		// Remember both are actually 8x8 images/patterns packed in 64 bit numbers.
+		// Here we take the XOR of these two numbers, which gives us count of bits which are different.
+		distance := bits.OnesCount64(v ^ pattern)
 
-			// We need to store the character which is the most similar.
-			// i.e. having the least number of different bits between it and the pattern.
-			if distance < maxDistance {
-				bestLetter = k
-				maxDistance = distance
-			}
+		// We need to store the character which is the most similar.
+		// i.e. having the least number of different bits between it and the pattern.
+		if distance < maxDistance {
+			bestLetter = k
+			maxDistance = distance
 		}
-
-		// Memoize, so we can reuse the same letter (instead of iterating through chars.CharMap again)
-		mem[pattern] = bestLetter
 	}
 
 	return getCharWithColor(bestLetter, c)
@@ -176,6 +200,10 @@ func printImage(path string, ascii_width uint) {
 
 	buffI, buffJ := 0, 0
 
+	inform := make(chan windowProcessorResult)
+	done := make(chan bool)
+	numProcessors := 0
+
 	// We need to scan (and draw) the image from left to right (and top to bottom)
 	// Here winX, winY represents the top-left corner of the 8x8 window of the image, which will be
 	// mapped to a single character.
@@ -185,30 +213,33 @@ func printImage(path string, ascii_width uint) {
 	for winY := 0; winY < h; winY += 8 {
 		buffJ = 0
 		for winX := 0; winX < w; winX += 8 {
-			func(img image.Image, winX, winY, w, h, buffI, buffJ int) {
-				//
-				// First, we figure out the color is dominant in this 8x8 window.
-				// Therefore, we can draw the character with that color in order to convey the color information.
-				// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
-				//
-				// Here, we are going to try out the mean color.
-				avgColor := getMeanColorForWindow(img, winX, winY, w, h)
-
-				// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
-				avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
-
-				// Pack the current window into a 64 bit integer by performing binarization.
-				// Details in the function definition.
-				packedWindow := getPackedFormOfWindow(img, winX, winY, w, h, avgIntensity)
-
-				// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
-				buffer[buffI][buffJ] = getClosestChar(packedWindow, avgColor)
-			}(img, winX, winY, w, h, buffI, buffJ)
+			processor := windowProcessor{img, winX, winY, w, h, buffI, buffJ}
+			go processor.Run(inform)
+			numProcessors++
 			buffJ++
 		}
 		buffI++
 	}
-	displayBuffer(buffer)
+
+	go func() {
+		resultsReceived := 0
+		for {
+			result, more := <-inform
+			if more {
+				resultsReceived++
+				buffer[result.buffI][result.buffJ] = result.c
+				if resultsReceived == numProcessors {
+					close(inform)
+				}
+			} else {
+				break
+			}
+		}
+		displayBuffer(buffer)
+		done <- true
+	}()
+
+	<-done
 }
 
 func main() {
@@ -216,7 +247,6 @@ func main() {
 	var width uint = 50
 
 	// Initializing a map to memoize 8x8 window to character mappings
-	mem = make(map[uint64]string)
 
 	// forever
 	for {
