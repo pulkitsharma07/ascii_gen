@@ -1,13 +1,13 @@
 # ascii_gen
-A script to generate basic colorfull ASCII art from Images.
-
-The code has ample comments documenting it.
+A script to generate basic colorful ASCII art from Images.
 
 ## Demo
 ![Demo](https://github.com/pulkitsharma07/pulkitsharma07.github.io/raw/development/assets/render1546308037772.gif)
 
 ## Working
-The code maps each 8x8 window of pixels of the image to the character which is most similar to
+The code has ample comments documenting it.
+
+Basically, it maps each 8x8 window of pixels of the image to the character which is most similar to
 that window.
 
 The code has enough comments to get you going, I recommend starting out with `chars/chars.go` and then
