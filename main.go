@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+// Defining a custom class here for Color to find the average color,
+// converting to 8-bit space, and so on
 type color struct {
 	r, g, b uint32
 }
@@ -19,6 +21,12 @@ func (a *color) Add(v *color) *color {
 	a.g += v.g
 	a.b += v.b
 
+	return a
+}
+
+// Converts R,G,B values back to 8 bits.
+func (a *color) retrofy() *color {
+	a.Div(0x101)
 	return a
 }
 
@@ -34,44 +42,6 @@ func (a *color) RGB() (uint32, uint32, uint32) {
 	return a.r, a.g, a.b
 }
 
-type windowProcessor struct {
-	img                            image.Image
-	winX, winY, w, h, buffI, buffJ int
-}
-
-type windowProcessorResult struct {
-	c            string
-	buffI, buffJ int
-}
-
-func (p windowProcessor) Run(inform chan windowProcessorResult) {
-	//
-	// First, we figure out the color is dominant in this 8x8 window.
-	// Therefore, we can draw the character with that color in order to convey the color information.
-	// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
-	//
-	// Here, we are going to try out the mean color.
-	avgColor := getMeanColorForWindow(p.img, p.winX, p.winY, p.w, p.h)
-
-	// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
-	avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
-
-	// Pack the current window into a 64 bit integer by performing binarization.
-	// Details in the function definition.
-	packedWindow := getPackedFormOfWindow(p.img, p.winX, p.winY, p.w, p.h, avgIntensity)
-
-	// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
-	char := getClosestChar(packedWindow, avgColor)
-
-	inform <- windowProcessorResult{char, p.buffI, p.buffJ}
-}
-
-// Converts R,G,B values back to 8 bits.
-func (a *color) retrofy() *color {
-	a.Div(0x101)
-	return a
-}
-
 // Refer: https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit
 func getCharWithColor(bestChar string, c *color) string {
 	c.retrofy()
@@ -79,6 +49,7 @@ func getCharWithColor(bestChar string, c *color) string {
 }
 
 // Here <pattern> represents a 8x8 window of the image compressed into a 64 bit number
+// and c represents the dominant color in that window, i.e. the color of the ASCII char
 func getClosestChar(pattern uint64, c *color) string {
 	maxDistance := 100
 	var bestLetter string
@@ -151,6 +122,45 @@ func getMeanColorForWindow(img image.Image, winX, winY, w, h int) *color {
 	}
 
 	return colorAccum.Div(64)
+}
+
+// windowProcessor is  the object which holds required information for
+// binarization and coloring.
+type windowProcessor struct {
+	img                            image.Image
+	winX, winY, w, h, buffI, buffJ int
+}
+
+// Results to be pushed on the channel.
+// The go routine cannot directly write to the buffer because of race issues.
+type windowProcessorResult struct {
+	c            string
+	buffI, buffJ int
+}
+
+// Runs runs a pipeline of different operations on the image (window of size 8x8 currently)
+// Once the operations complete, it determines the ASCII character which should represent
+// this particular window and pushes that on the <inform> channel.
+func (p windowProcessor) Run(inform chan windowProcessorResult) {
+	//
+	// First, we figure out the color is dominant in this 8x8 window.
+	// Therefore, we can draw the character with that color in order to convey the color information.
+	// These can be done in multiple ways: (mean/mode/median/maximum) value of R,G,Bs in the window
+	//
+	// Here, we are going to try out the mean color.
+	avgColor := getMeanColorForWindow(p.img, p.winX, p.winY, p.w, p.h)
+
+	// Not really 'intensity' in the proper sense. But some kind of value to indicate the "brightness"
+	avgIntensity := uint32(avgColor.r + avgColor.g + avgColor.b/3)
+
+	// Pack the current window into a 64 bit integer by performing binarization.
+	// Details in the function definition.
+	packedWindow := getPackedFormOfWindow(p.img, p.winX, p.winY, p.w, p.h, avgIntensity)
+
+	// Figure out and print the character whose 8x8 representation is most similar to the current 8x8 window
+	char := getClosestChar(packedWindow, avgColor)
+
+	inform <- windowProcessorResult{char, p.buffI, p.buffJ}
 }
 
 func displayBuffer(buffer [][]string) {
