@@ -1,1 +1,20 @@
-assets/
+# Binaries and build outputs
+ascii_converter
+
+# Output directory for generated ASCII art
+ascii_output/
+
+# Input directory for images (optional to ignore)
+input_images/
+
+# Dependency management files (if not needed to share)
+*.mod
+*.sum
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files and logs
+*.log
+*.tmp
